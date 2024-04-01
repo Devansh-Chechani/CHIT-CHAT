@@ -6,7 +6,7 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
 import { Message} from './models/Message.js'
-
+import messageRoutes from './routes/messages.js';
 import authRoutes from './routes/auth.js';
 
 const app = express();
@@ -20,6 +20,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 app.use('/api/auth', authRoutes);
+app.use('/api/message', messageRoutes);
 
 const Connection = async () => {
   try {
@@ -40,6 +41,19 @@ const wss = new WebSocketServer({ server });
 const connections = new Set();
 
 wss.on('connection', (connection, req) => {
+
+  connection.isAlive = true
+
+  connection.timer = setInterval(()=>{
+      connection.ping()
+  },5000)
+
+  connection.on('pong',()=>{
+    // console.log('pong')
+  })
+
+
+
   const cookies = req.headers.cookie;
   if (cookies) {
     const tokenCookieString = cookies.split(';').find((str) => str.startsWith('token='));
@@ -78,7 +92,7 @@ wss.on('connection', (connection, req) => {
             text,
             sender:connection.userId ,
             recipient,
-            id:messageDoc._id
+            _id:messageDoc._id
           
           })));
       }
@@ -86,7 +100,7 @@ wss.on('connection', (connection, req) => {
       console.error('Error parsing message:', error);
     }
   });
-
+ 
   updateOnlineUsers();
 });
 
@@ -102,3 +116,8 @@ function updateOnlineUsers() {
     }
   });
 }
+
+
+wss.on('close',data=>{
+   console.log('disconnected' ,data)
+})
